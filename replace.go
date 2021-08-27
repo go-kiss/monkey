@@ -26,31 +26,31 @@ func pageStart(ptr uintptr) uintptr {
 // to is a pointer to a go funcvalue
 func replaceFunction(from, to reflect.Value) (original []byte) {
 	_from := from.Pointer()
-	__from := (uintptr)(getPtr(from))
+	// __from := (uintptr)(getPtr(from))
 
 	_to := to.Pointer()
 	__to := (uintptr)(getPtr(to))
 
 	t := alginPatch(_from)
 	if begin, end, sp := findPadding(_to); begin > 0 {
-		jumpToReal := jmpToFunctionValue(_to + end)
+		jumpToReal := jmp(_to + end)
 		for len(jumpToReal) < 2*9 {
 			jumpToReal = append(jumpToReal, 0x90)
 		}
 		copyToLocation(_to+begin, jumpToReal)
 
+		old := jmp(_from + uintptr(len(t)))
 		ss := []byte{
 			0x48, 0x83, 0xc4, // add rsp,0x??
 			byte(sp),
 		}
 		t = append(ss, t...)
-		old := jmpToFunctionValue(__from + uintptr(len(t)))
 		jumpToOld := append(t, old...)
 		for len(jumpToOld) < 6*9 {
 			jumpToOld = append(jumpToOld, 0x90)
 		}
 		copyToLocation(_to+end-6*9, jumpToOld)
-		dump("", rawMemoryAccess(_to, 128))
+		// dump("", rawMemoryAccess(_to, 128))
 	}
 
 	jumpData := jmpToFunctionValue(__to)

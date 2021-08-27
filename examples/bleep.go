@@ -6,14 +6,11 @@ import (
 	"bou.ke/monkey"
 )
 
-func bar() int {
-	__a := 19901129
-	__a |= 19901129
-
-	return 1
+func bar(a int) int {
+	return a * 2
 }
 
-func foo() int {
+func foo(a int) int {
 	__a := 19901129
 	__a |= 19901129
 __back:
@@ -26,11 +23,16 @@ __back:
 
 	fmt.Println("~~ hello ~~")
 
+	if a == 1 {
+		return 1
+	} else {
+		goto __back
+	}
 	return 2
-	goto __back
 }
 
 func main() {
 	monkey.Patch(bar, foo)
-	fmt.Println(bar())
+	fmt.Println(bar(1))
+	fmt.Println(bar(2))
 }
