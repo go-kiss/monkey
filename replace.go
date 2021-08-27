@@ -24,22 +24,16 @@ func pageStart(ptr uintptr) uintptr {
 
 // from is a pointer to the actual function
 // to is a pointer to a go funcvalue
-func replaceFunction(from, to reflect.Value) (original []byte) {
-	_from := from.Pointer()
-	// __from := (uintptr)(getPtr(from))
-
-	_to := to.Pointer()
-	__to := (uintptr)(getPtr(to))
-
-	t := alginPatch(_from)
-	if begin, end, sp := findPadding(_to); begin > 0 {
-		jumpToReal := jmp(_to + end)
+func replaceFunction(from, to uintptr) (original []byte) {
+	t := alginPatch(from)
+	if begin, end, sp := findPadding(to); begin > 0 {
+		jumpToReal := jmpToFunctionValue(to + end)
 		for len(jumpToReal) < 2*9 {
 			jumpToReal = append(jumpToReal, 0x90)
 		}
-		copyToLocation(_to+begin, jumpToReal)
+		copyToLocation(to+begin, jumpToReal)
 
-		old := jmp(_from + uintptr(len(t)))
+		old := jmpToFunctionValue(from + uintptr(len(t)))
 		ss := []byte{
 			0x48, 0x83, 0xc4, // add rsp,0x??
 			byte(sp),
@@ -49,16 +43,16 @@ func replaceFunction(from, to reflect.Value) (original []byte) {
 		for len(jumpToOld) < 6*9 {
 			jumpToOld = append(jumpToOld, 0x90)
 		}
-		copyToLocation(_to+end-6*9, jumpToOld)
+		copyToLocation(to+end-6*9, jumpToOld)
 		// dump("", rawMemoryAccess(_to, 128))
 	}
 
-	jumpData := jmpToFunctionValue(__to)
-	f := rawMemoryAccess(_from, len(jumpData))
+	jumpData := jmpToFunctionValue(to)
+	f := rawMemoryAccess(from, len(jumpData))
 	original = make([]byte, len(f))
 	copy(original, f)
 
-	copyToLocation(_from, jumpData)
+	copyToLocation(from, jumpData)
 	return
 }
 
