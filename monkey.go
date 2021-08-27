@@ -84,7 +84,8 @@ func patchValue(target, replacement reflect.Value) {
 		unpatch(target.Pointer(), patch)
 	}
 
-	bytes := replaceFunction(target.Pointer(), (uintptr)(getPtr(replacement)))
+	// bytes := replaceFunction(target.Pointer(), (uintptr)(getPtr(replacement)))
+	bytes := replaceFunction(target, replacement)
 	patches[target.Pointer()] = patch{bytes, &replacement}
 }
 
