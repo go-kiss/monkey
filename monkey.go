@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-	"unsafe"
 )
 
 // patch is an applied patch
@@ -19,15 +18,6 @@ var (
 
 	patches = make(map[uintptr]patch)
 )
-
-type value struct {
-	_   uintptr
-	ptr unsafe.Pointer
-}
-
-func getPtr(v reflect.Value) unsafe.Pointer {
-	return (*value)(unsafe.Pointer(&v)).ptr
-}
 
 type PatchGuard struct {
 	target      reflect.Value
