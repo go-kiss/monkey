@@ -7,7 +7,7 @@ import (
 // Assembles a jump to a function value
 func jmpToFunctionValue(to uintptr) []byte {
 	return []byte{
-		0x48, 0xBA,
+		0x49, 0xBD,
 		byte(to),
 		byte(to >> 8),
 		byte(to >> 16),
@@ -15,8 +15,8 @@ func jmpToFunctionValue(to uintptr) []byte {
 		byte(to >> 32),
 		byte(to >> 40),
 		byte(to >> 48),
-		byte(to >> 56), // movabs rdx,to
-		0xFF, 0xE2,     // jmp rdx
+		byte(to >> 56),   // movabs r13,to
+		0x41, 0xFF, 0xE5, // jmp r13
 	}
 }
 
