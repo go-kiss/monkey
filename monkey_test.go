@@ -3,6 +3,7 @@ package monkey_test
 import (
 	"reflect"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -124,4 +125,34 @@ func panics(t *testing.T, f func()) {
 		}
 	}()
 	f()
+}
+
+//go:noinline
+func foo(a, b int) int {
+	return a + b
+}
+
+//go:noinline
+func bar(a, b int) int {
+	return a - b
+}
+
+func TestG(t *testing.T) {
+	monkey.Patch(foo, bar)
+
+	assert(t, -1 == foo(1, 2))
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		assert(t, 3 == foo(1, 2))
+	}()
+	go func() {
+		monkey.Patch(foo, func(a, b int) int {
+			return a * b
+		})
+		defer wg.Done()
+		assert(t, 2 == foo(1, 2))
+	}()
+	wg.Wait()
 }
