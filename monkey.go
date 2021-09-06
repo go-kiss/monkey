@@ -68,6 +68,7 @@ func patchValue(target, replacement reflect.Value) {
 	p, ok := patches[target.Pointer()]
 	if !ok {
 		p = &patch{from: target.Pointer()}
+		patches[target.Pointer()] = p
 	}
 	p.Add(replacement.Pointer())
 	p.Apply()
@@ -93,9 +94,8 @@ func UnpatchInstanceMethod(target reflect.Type, methodName string) bool {
 func UnpatchAll() {
 	lock.Lock()
 	defer lock.Unlock()
-	for target, p := range patches {
-		unpatch(target, p)
-		delete(patches, target)
+	for _, p := range patches {
+		p.Clear()
 	}
 }
 
@@ -149,6 +149,11 @@ func (p *patch) Del(to uintptr) {
 
 	gid := (uintptr)(g.G())
 	delete(p.patches, gid)
+}
+
+func (p *patch) Clear() {
+	p.patches = nil
+	p.Apply()
 }
 
 func (p *patch) Apply() {
