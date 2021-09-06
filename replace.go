@@ -56,6 +56,10 @@ func replaceFunction(from, to uintptr) (original []byte) {
 	return
 }
 
+func setX(p uintptr, l int) {
+	mprotectCrossPage(p, l, syscall.PROT_READ|syscall.PROT_WRITE|syscall.PROT_EXEC)
+}
+
 func dump(msg string, f []byte) {
 	fmt.Println("-------", msg)
 	s := 0

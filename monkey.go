@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+
+	"github.com/huandu/go-tls/g"
 )
 
 // patch is an applied patch
@@ -17,6 +19,8 @@ var (
 	lock = sync.Mutex{}
 
 	patches = make(map[uintptr]patch)
+
+	patches2 = make(map[uintptr]*gPatch)
 )
 
 type PatchGuard struct {
@@ -70,12 +74,12 @@ func patchValue(target, replacement reflect.Value) {
 		panic(fmt.Sprintf("target and replacement have to have the same type %s != %s", target.Type(), replacement.Type()))
 	}
 
-	if patch, ok := patches[target.Pointer()]; ok {
-		unpatch(target.Pointer(), patch)
+	p, ok := patches2[target.Pointer()]
+	if !ok {
+		p = &gPatch{From: target.Pointer()}
 	}
-
-	bytes := replaceFunction(target.Pointer(), replacement.Pointer())
-	patches[target.Pointer()] = patch{bytes, &replacement}
+	p.Add(replacement.Pointer())
+	p.Apply()
 }
 
 // Unpatch removes any monkey patches on target
@@ -120,4 +124,66 @@ func unpatchValue(target reflect.Value) bool {
 
 func unpatch(target uintptr, p patch) {
 	copyToLocation(target, p.originalBytes)
+}
+
+type gPatch struct {
+	From uintptr
+
+	original []byte
+	patch    []byte
+
+	// g pointer => patch func pointer
+	patches map[uintptr]uintptr
+
+	m sync.Mutex
+
+	prev *gPatch
+}
+
+func (p *gPatch) Add(to uintptr) {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if p.patches == nil {
+		p.patches = make(map[uintptr]uintptr)
+	}
+
+	gid := (uintptr)(g.G())
+
+	if _, ok := p.patches[gid]; ok {
+		panic("exists")
+	}
+
+	p.patches[gid] = to
+}
+
+func (p *gPatch) Apply() {
+	p.patch = p.Marshal()
+
+	// dump("apply patch", p.patch)
+
+	v := reflect.ValueOf(p.patch)
+	setX(v.Pointer(), len(p.patch))
+
+	jumpData := jmpToFunctionValue(v.Pointer())
+	copyToLocation(p.From, jumpData)
+}
+
+func (p *gPatch) Marshal() (patch []byte) {
+	if p.original == nil {
+		p.original = alginPatch(p.From)
+	}
+
+	patch = getg()
+
+	for g, to := range p.patches {
+		t := jmpTable(g, to)
+		patch = append(patch, t...)
+	}
+
+	patch = append(patch, p.original...)
+	old := jmpToFunctionValue(p.From + uintptr(len(p.original)))
+	patch = append(patch, old...)
+
+	return
 }
