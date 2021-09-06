@@ -155,7 +155,7 @@ func (p *patch) Apply() {
 	p.patch = p.Marshal()
 
 	v := reflect.ValueOf(p.patch)
-	setX(v.Pointer(), len(p.patch))
+	allowExec(v.Pointer(), len(p.patch))
 
 	jumpData := jmpToFunctionValue(v.Pointer())
 	copyToLocation(p.from, jumpData)

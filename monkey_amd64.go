@@ -1,5 +1,9 @@
 package monkey
 
+import (
+	"golang.org/x/arch/x86/x86asm"
+)
+
 // Assembles a jump to a function value
 func jmpToFunctionValue(to uintptr) []byte {
 	return []byte{
@@ -51,5 +55,22 @@ func jmpTable(g, to uintptr) []byte {
 		byte(to >> 56),
 		// jmp r13
 		0x41, 0xFF, 0xE5,
+	}
+}
+
+func alginPatch(from uintptr) (original []byte) {
+	f := rawMemoryAccess(from, 32)
+
+	s := 0
+	for {
+		i, err := x86asm.Decode(f[s:], 64)
+		if err != nil {
+			panic(err)
+		}
+		original = append(original, f[s:s+i.Len]...)
+		s += i.Len
+		if s >= 13 {
+			return
+		}
 	}
 }
