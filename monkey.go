@@ -67,7 +67,7 @@ func patchValue(target, replacement reflect.Value) {
 
 	p, ok := patches[target.Pointer()]
 	if !ok {
-		p = &patch{From: target.Pointer()}
+		p = &patch{from: target.Pointer()}
 	}
 	p.Add(replacement.Pointer())
 	p.Apply()
@@ -119,7 +119,7 @@ func unpatch(target uintptr, p *patch) {
 }
 
 type patch struct {
-	From uintptr
+	from uintptr
 
 	original []byte
 	patch    []byte
@@ -136,7 +136,7 @@ func (p *patch) Add(to uintptr) {
 	gid := (uintptr)(g.G())
 
 	if _, ok := p.patches[gid]; ok {
-		panic("exists")
+		panic("patch exists")
 	}
 
 	p.patches[gid] = to
@@ -158,12 +158,12 @@ func (p *patch) Apply() {
 	setX(v.Pointer(), len(p.patch))
 
 	jumpData := jmpToFunctionValue(v.Pointer())
-	copyToLocation(p.From, jumpData)
+	copyToLocation(p.from, jumpData)
 }
 
 func (p *patch) Marshal() (patch []byte) {
 	if p.original == nil {
-		p.original = alginPatch(p.From)
+		p.original = alginPatch(p.from)
 	}
 
 	patch = getg()
@@ -174,7 +174,7 @@ func (p *patch) Marshal() (patch []byte) {
 	}
 
 	patch = append(patch, p.original...)
-	old := jmpToFunctionValue(p.From + uintptr(len(p.original)))
+	old := jmpToFunctionValue(p.from + uintptr(len(p.original)))
 	patch = append(patch, old...)
 
 	return
