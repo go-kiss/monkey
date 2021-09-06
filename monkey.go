@@ -108,8 +108,9 @@ func unpatchValue(target reflect.Value) bool {
 	if !ok {
 		return false
 	}
-	unpatch(target.Pointer(), patch)
-	delete(patches, target.Pointer())
+
+	patch.Del(target.Pointer())
+	patch.Apply()
 	return true
 }
 
@@ -125,16 +126,9 @@ type patch struct {
 
 	// g pointer => patch func pointer
 	patches map[uintptr]uintptr
-
-	m sync.Mutex
-
-	prev *patch
 }
 
 func (p *patch) Add(to uintptr) {
-	p.m.Lock()
-	defer p.m.Unlock()
-
 	if p.patches == nil {
 		p.patches = make(map[uintptr]uintptr)
 	}
@@ -146,6 +140,15 @@ func (p *patch) Add(to uintptr) {
 	}
 
 	p.patches[gid] = to
+}
+
+func (p *patch) Del(to uintptr) {
+	if p.patches == nil {
+		return
+	}
+
+	gid := (uintptr)(g.G())
+	delete(p.patches, gid)
 }
 
 func (p *patch) Apply() {
