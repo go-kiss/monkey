@@ -22,58 +22,8 @@ func pageStart(ptr uintptr) uintptr {
 	return ptr & ^(uintptr(syscall.Getpagesize() - 1))
 }
 
-// from is a pointer to the actual function
-// to is a pointer to a go funcvalue
-func replaceFunction(from, to uintptr) (original []byte) {
-	t := alginPatch(from)
-	if begin, end, sp := findPadding(to); begin > 0 {
-		jumpToReal := jmpToFunctionValue(to + end)
-		for len(jumpToReal) < 2*9 {
-			jumpToReal = append(jumpToReal, 0x90)
-		}
-		copyToLocation(to+begin, jumpToReal)
-
-		old := jmpToFunctionValue(from + uintptr(len(t)))
-		ss := []byte{
-			0x48, 0x83, 0xc4, // add rsp,0x??
-			byte(sp),
-		}
-		t = append(ss, t...)
-		jumpToOld := append(t, old...)
-		for len(jumpToOld) < 6*9 {
-			jumpToOld = append(jumpToOld, 0x90)
-		}
-		copyToLocation(to+end-6*9, jumpToOld)
-		// dump("", rawMemoryAccess(_to, 128))
-	}
-
-	jumpData := jmpToFunctionValue(to)
-	f := rawMemoryAccess(from, len(jumpData))
-	original = make([]byte, len(f))
-	copy(original, f)
-
-	copyToLocation(from, jumpData)
-	return
-}
-
 func setX(p uintptr, l int) {
 	mprotectCrossPage(p, l, syscall.PROT_READ|syscall.PROT_WRITE|syscall.PROT_EXEC)
-}
-
-func dump(msg string, f []byte) {
-	fmt.Println("-------", msg)
-	s := 0
-	for {
-		i, err := x86asm.Decode(f[s:], 64)
-		if err != nil {
-			return
-		}
-		s += i.Len
-		fmt.Println(i)
-		if s >= len(f) {
-			return
-		}
-	}
 }
 
 func alginPatch(from uintptr) (original []byte) {

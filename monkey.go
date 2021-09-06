@@ -8,19 +8,10 @@ import (
 	"github.com/huandu/go-tls/g"
 )
 
-// patch is an applied patch
-// needed to undo a patch
-type patch struct {
-	originalBytes []byte
-	replacement   *reflect.Value
-}
-
 var (
 	lock = sync.Mutex{}
 
-	patches = make(map[uintptr]patch)
-
-	patches2 = make(map[uintptr]*gPatch)
+	patches = make(map[uintptr]*patch)
 )
 
 type PatchGuard struct {
@@ -74,9 +65,9 @@ func patchValue(target, replacement reflect.Value) {
 		panic(fmt.Sprintf("target and replacement have to have the same type %s != %s", target.Type(), replacement.Type()))
 	}
 
-	p, ok := patches2[target.Pointer()]
+	p, ok := patches[target.Pointer()]
 	if !ok {
-		p = &gPatch{From: target.Pointer()}
+		p = &patch{From: target.Pointer()}
 	}
 	p.Add(replacement.Pointer())
 	p.Apply()
@@ -122,11 +113,11 @@ func unpatchValue(target reflect.Value) bool {
 	return true
 }
 
-func unpatch(target uintptr, p patch) {
-	copyToLocation(target, p.originalBytes)
+func unpatch(target uintptr, p *patch) {
+	copyToLocation(target, p.original)
 }
 
-type gPatch struct {
+type patch struct {
 	From uintptr
 
 	original []byte
@@ -137,10 +128,10 @@ type gPatch struct {
 
 	m sync.Mutex
 
-	prev *gPatch
+	prev *patch
 }
 
-func (p *gPatch) Add(to uintptr) {
+func (p *patch) Add(to uintptr) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
@@ -157,10 +148,8 @@ func (p *gPatch) Add(to uintptr) {
 	p.patches[gid] = to
 }
 
-func (p *gPatch) Apply() {
+func (p *patch) Apply() {
 	p.patch = p.Marshal()
-
-	// dump("apply patch", p.patch)
 
 	v := reflect.ValueOf(p.patch)
 	setX(v.Pointer(), len(p.patch))
@@ -169,7 +158,7 @@ func (p *gPatch) Apply() {
 	copyToLocation(p.From, jumpData)
 }
 
-func (p *gPatch) Marshal() (patch []byte) {
+func (p *patch) Marshal() (patch []byte) {
 	if p.original == nil {
 		p.original = alginPatch(p.From)
 	}
