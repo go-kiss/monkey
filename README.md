@@ -1,4 +1,4 @@
-# Go 猴子补丁 🙉 🐒
+# Go语言猴子补丁框架 🙉 🐒
 
 ![test workflow](https://github.com/go-kiss/monkey/actions/workflows/go.yml/badge.svg)
 
@@ -34,6 +34,8 @@ func main() {
 	fmt.Println(sum(1,2)) // 输出 -1
 }
 ```
+
+更多用法请参考[使用示例](./examples)和[测试用例](./monkey_test.go)。
 
 ## 注意事项
 
