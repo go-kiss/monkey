@@ -1,3 +1,6 @@
+//go:build windows
+// +build windows
+
 package monkey
 
 import (
@@ -38,6 +41,14 @@ func copyToLocation(location uintptr, data []byte) {
 	// current memory protection permissions to, even if you don't want them.
 	var tmp uint32
 	err = virtualProtect(location, len(data), oldPerms, unsafe.Pointer(&tmp))
+	if err != nil {
+		panic(err)
+	}
+}
+
+func allowExec(location uintptr, length int) {
+	var oldPerms uint32
+	err := virtualProtect(location, length, PAGE_EXECUTE_READWRITE, unsafe.Pointer(&oldPerms))
 	if err != nil {
 		panic(err)
 	}

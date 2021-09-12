@@ -17,7 +17,3 @@ func rawMemoryAccess(p uintptr, length int) []byte {
 func pageStart(ptr uintptr) uintptr {
 	return ptr & ^(uintptr(syscall.Getpagesize() - 1))
 }
-
-func allowExec(p uintptr, length int) {
-	mprotectCrossPage(p, length, syscall.PROT_READ|syscall.PROT_WRITE|syscall.PROT_EXEC)
-}
