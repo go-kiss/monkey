@@ -49,13 +49,6 @@ func jmpToGoFn(to uintptr) []byte {
 	}
 }
 
-func getg() []byte {
-	return []byte{
-		// movq r12, gs:0x30
-		0x65, 0x4C, 0x8B, 0x24, 0x25, 0x30, 0x00, 0x00, 0x00,
-	}
-}
-
 func jmpTable(g, to uintptr) []byte {
 	b := []byte{
 		// movq r13, g
