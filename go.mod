@@ -1,4 +1,4 @@
-module bou.ke/monkey
+module github.com/go-kiss/monkey
 
 go 1.13
 
