@@ -20,6 +20,19 @@ func jmpToFunctionValue(to uintptr) []byte {
 	}
 }
 
+func littleEndian(to uintptr) []byte {
+	return []byte{
+		byte(to),
+		byte(to >> 8),
+		byte(to >> 16),
+		byte(to >> 24),
+		byte(to >> 32),
+		byte(to >> 40),
+		byte(to >> 48),
+		byte(to >> 56),
+	}
+}
+
 // Assembles a jump to a function value
 func jmpToGoFn(to uintptr) []byte {
 	return []byte{

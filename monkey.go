@@ -87,6 +87,24 @@ func patchValue(target, replacement reflect.Value) {
 	p.Apply()
 }
 
+// PatchEmpty patches target with empty patch.
+// Call the target will run the original func.
+func PatchEmpty(target interface{}) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	t := reflect.ValueOf(target).Pointer()
+
+	p, ok := patches[t]
+	if ok {
+		return
+	}
+
+	p = &patch{from: t}
+	patches[t] = p
+	p.Apply()
+}
+
 // Unpatch removes any monkey patches on target
 // returns whether target was patched in the first place
 func Unpatch(target interface{}) bool {
@@ -136,6 +154,8 @@ type patch struct {
 	original []byte
 	patch    []byte
 
+	patched bool
+
 	// g pointer => patch func pointer
 	patches map[uintptr]uintptr
 }
@@ -174,8 +194,14 @@ func (p *patch) Apply() {
 	v := reflect.ValueOf(p.patch)
 	allowExec(v.Pointer(), len(p.patch))
 
-	jumpData := jmpToFunctionValue(v.Pointer())
-	copyToLocation(p.from, jumpData)
+	if p.patched {
+		data := littleEndian(v.Pointer())
+		copyToLocation(p.from+2, data)
+	} else {
+		jumpData := jmpToFunctionValue(v.Pointer())
+		copyToLocation(p.from, jumpData)
+		p.patched = true
+	}
 }
 
 func (p *patch) Marshal() (patch []byte) {

@@ -137,6 +137,42 @@ func bar(a, b int) int {
 	return a - b
 }
 
+func TestEmpty(t *testing.T) {
+	monkey.PatchEmpty(foo)
+
+	stop := make(chan int)
+	var wg sync.WaitGroup
+	for i := 1; i < runtime.NumCPU()-1; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			j := 0
+			for {
+				f := func(j int) func(a, b int) int {
+					return func(a, b int) int {
+						return a + b + j
+					}
+				}(j)
+				monkey.Patch(foo, f)
+				assert(t, 1+1+j == foo(1, 1))
+				monkey.Unpatch(foo)
+				select {
+				case <-stop:
+					return
+				default:
+					j++
+				}
+			}
+		}(i)
+	}
+
+	for i := 0; i < 2000000; i++ {
+		assert(t, i+1 == foo(i, 1))
+	}
+	close(stop)
+	wg.Wait()
+}
+
 func TestG(t *testing.T) {
 	monkey.Patch(foo, bar)
 
