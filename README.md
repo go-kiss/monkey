@@ -2,11 +2,17 @@
 
 ![test workflow](https://github.com/go-kiss/monkey/actions/workflows/go.yml/badge.svg)
 
-Go 语言猴子补丁（monkey patching）框架。核心思路来自[Bouke](https://bou.ke/blog/monkey-patching-in-go/)。
+Go 语言猴子补丁（monkey patching）框架。
 
-本项目对 Bouke 的项目做了优化，不同协程可以独立 patch 同一个函数而互不影响。从而可以并发运行单元测试。
+本项目对 [Bouke](https://bou.ke/blog/monkey-patching-in-go/) 的项目做了优化，不同协程可以独立 patch 同一个函数而互不影响。从而可以并发运行单元测试。
 
-工作原理请参考我的博客文章[Go语言实现猴子补丁](https://taoshu.in/go/monkey.html)。
+工作原理请参考我的系列文章：
+
+- [Go语言实现猴子补丁](https://taoshu.in/go/monkey.html)
+- [Go语言实现猴子补丁【二】](https://taoshu.in/go/monkey-2.html)
+- [Go语言实现猴子补丁【三】](https://taoshu.in/go/monkey-3.html)
+
+Bouke 已经不再维护原项目，所以只能开一个新项目了🤣。
 
 ## 快速入门
 
