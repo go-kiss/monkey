@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"unsafe"
 
 	"github.com/huandu/go-tls/g"
 )
@@ -49,6 +50,16 @@ func PatchInstanceMethod(target reflect.Type, methodName string, replacement int
 	return &PatchGuard{m.Func, r}
 }
 
+// See reflect.Value
+type value struct {
+	_   uintptr
+	ptr unsafe.Pointer
+}
+
+func getPtr(v reflect.Value) unsafe.Pointer {
+	return (*value)(unsafe.Pointer(&v)).ptr
+}
+
 func patchValue(target, replacement reflect.Value) {
 	lock.Lock()
 	defer lock.Unlock()
@@ -70,7 +81,9 @@ func patchValue(target, replacement reflect.Value) {
 		p = &patch{from: target.Pointer()}
 		patches[target.Pointer()] = p
 	}
-	p.Add(replacement.Pointer())
+	if !replacement.IsNil() {
+		p.Add((uintptr)(getPtr(replacement)))
+	}
 	p.Apply()
 }
 
@@ -95,7 +108,8 @@ func UnpatchAll() {
 	lock.Lock()
 	defer lock.Unlock()
 	for _, p := range patches {
-		p.Clear()
+		p.patches = nil
+		p.Apply()
 	}
 }
 
@@ -109,9 +123,7 @@ func unpatchValue(target reflect.Value) bool {
 		return false
 	}
 
-	patch.Del(target.Pointer())
-	patch.Apply()
-	return true
+	return patch.Del()
 }
 
 func unpatch(target uintptr, p *patch) {
@@ -142,18 +154,18 @@ func (p *patch) Add(to uintptr) {
 	p.patches[gid] = to
 }
 
-func (p *patch) Del(to uintptr) {
+func (p *patch) Del() bool {
 	if p.patches == nil {
-		return
+		return false
 	}
 
 	gid := (uintptr)(g.G())
+	if _, ok := p.patches[gid]; !ok {
+		return false
+	}
 	delete(p.patches, gid)
-}
-
-func (p *patch) Clear() {
-	p.patches = nil
 	p.Apply()
+	return true
 }
 
 func (p *patch) Apply() {
