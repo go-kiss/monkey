@@ -1,0 +1,11 @@
+//go:build windows
+// +build windows
+
+package monkey
+
+func getg() []byte {
+	return []byte{
+		// mov r12,QWORD PTR gs:0x28
+		0x65, 0x4C, 0x8B, 0x24, 0x25, 0x28, 0x00, 0x00, 0x00,
+	}
+}
