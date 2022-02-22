@@ -1,5 +1,5 @@
 name: Go
-on: [push]
+on: [push, pull_request]
 jobs:
   test-linux:
     name: Test on Linux
@@ -27,16 +27,16 @@ jobs:
       uses: actions/checkout@v1
     - name: Test
       run: go test -gcflags=-l
-  # test-windows:
-  #   name: Test on Windows
-  #   runs-on: windows-latest
-  #   steps:
-  #   - name: Set up Go 1.13
-  #     uses: actions/setup-go@v1
-  #     with:
-  #       go-version: 1.13
-  #     id: go
-  #   - name: Check out code into the Go module directory
-  #     uses: actions/checkout@v1
-  #   - name: Test
-  #     run: go test -gcflags=-l
+  test-windows:
+    name: Test on Windows
+    runs-on: windows-latest
+    steps:
+    - name: Set up Go 1.13
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13
+      id: go
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+    - name: Test
+      run: go test -gcflags=-l
