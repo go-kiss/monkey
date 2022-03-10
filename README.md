@@ -47,7 +47,7 @@ func main() {
 
 ## 注意事项
 
-1. Monkey 需要关闭 Go 语言的内联优化才能生效，比如测试的时候需要：`go test -gcflags=-l`。
+1. Monkey 需要关闭 Go 语言的内联优化才能生效，比如测试的时候需要：`go test -gcflags=-l`。(go 1.17 编译参数使用 -gcflags=all=-l)
 2. Monkey 需要在运行的时候修改内存代码段，因而无法在一些对安全性要求比较高的系统上工作。
 3. Monkey 不应该用于生产系统，但用来 mock 测试代码还是没有问题的。
 4. Monkey 目前仅支持 amd64 指令架构，支持 linux/macos/windows 平台。
