@@ -49,7 +49,7 @@ func jmpToGoFn(to uintptr) []byte {
 	}
 }
 
-func jmpTable(g, to uintptr) []byte {
+func jmpTable(g, to uintptr, gofn bool) []byte {
 	b := []byte{
 		// movq r13, g
 		0x49, 0xBD,
@@ -66,7 +66,11 @@ func jmpTable(g, to uintptr) []byte {
 		// jne $+(2+12)
 		0x75, 0x0c,
 	}
-	b = append(b, jmpToGoFn(to)...)
+	if gofn {
+		b = append(b, jmpToGoFn(to)...)
+	} else {
+		b = append(b, jmpToFunctionValue(to)...)
+	}
 	return b
 }
 
@@ -83,6 +87,34 @@ func alginPatch(from uintptr) (original []byte) {
 		s += i.Len
 		if s >= 13 {
 			return
+		}
+	}
+}
+
+func getFirstCallFunc(from uintptr) uintptr {
+	f := rawMemoryAccess(from, 1024)
+
+	s := 0
+	for {
+		i, err := x86asm.Decode(f[s:], 64)
+		if err != nil {
+			panic(err)
+		}
+		if i.Op == x86asm.CALL {
+			arg := i.Args[0]
+			imm := arg.(x86asm.Rel)
+			next := from + uintptr(s+i.Len)
+			var to uintptr
+			if imm > 0 {
+				to = next + uintptr(imm)
+			} else {
+				to = next - uintptr(-imm)
+			}
+			return to
+		}
+		s += i.Len
+		if s >= 1024 {
+			panic("Can not find CALL instruction")
 		}
 	}
 }
