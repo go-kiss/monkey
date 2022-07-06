@@ -3,6 +3,7 @@ package monkey
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -19,7 +20,8 @@ type PatchGuard struct {
 	target      reflect.Value
 	replacement reflect.Value
 
-	global bool
+	global  bool
+	generic bool
 }
 
 func (g *PatchGuard) Unpatch() {
@@ -27,7 +29,7 @@ func (g *PatchGuard) Unpatch() {
 }
 
 func (g *PatchGuard) Restore() {
-	patchValue(g.target, g.replacement, g.global)
+	patchValue(g.target, g.replacement, g.global, g.generic)
 }
 
 // Patch replaces a function with another for current goroutine only.
@@ -39,19 +41,18 @@ func Patch(target, replacement interface{}) *PatchGuard {
 	t := reflect.ValueOf(target)
 	r := reflect.ValueOf(replacement)
 
-	patchValue(t, r, false)
+	patchValue(t, r, false, false)
 
-	return &PatchGuard{t, r, false}
+	return &PatchGuard{t, r, false, false}
 }
 
-// PatchAll replaces a function with another globally.
-func PatchAll(target, replacement interface{}) *PatchGuard {
+func PatchRaw(target interface{}, replacement interface{}, global, generic bool) *PatchGuard {
 	t := reflect.ValueOf(target)
 	r := reflect.ValueOf(replacement)
 
-	patchValue(t, r, true)
+	patchValue(t, r, global, generic)
 
-	return &PatchGuard{t, r, true}
+	return &PatchGuard{t, r, false, true}
 }
 
 // See reflect.Value
@@ -64,7 +65,37 @@ func getPtr(v reflect.Value) unsafe.Pointer {
 	return (*value)(unsafe.Pointer(&v)).ptr
 }
 
-func patchValue(target, replacement reflect.Value, global bool) {
+func checkStructMonkeyType(a, b reflect.Type) bool {
+	if a.NumIn() != b.NumIn() {
+		return false
+	}
+
+	if a.NumIn() == 0 {
+		return false
+	}
+
+	for i := 1; i < a.NumIn(); i++ {
+		if a.In(i) != b.In(i) {
+			return false
+		}
+	}
+
+	t1 := a.In(0).String()
+	t2 := b.In(0).String()
+
+	if strings.Index(t2, "__monkey__") == -1 {
+		return false
+	}
+
+	t1 = t1[strings.LastIndex(t1, "."):]
+	t2 = t2[strings.LastIndex(t2, "."):]
+
+	t2 = strings.Replace(t2, "__monkey__", "", 1)
+
+	return t1 == t2
+}
+
+func patchValue(target, replacement reflect.Value, global, generic bool) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -76,13 +107,21 @@ func patchValue(target, replacement reflect.Value, global bool) {
 		panic("replacement has to be a Func")
 	}
 
-	if target.Type() != replacement.Type() {
-		panic(fmt.Sprintf("target and replacement have to have the same type %s != %s", target.Type(), replacement.Type()))
-	}
-
 	if replacement.IsNil() {
 		panic("replacement must not to be nil")
 	}
+
+	if target.Type() != replacement.Type() {
+		if checkStructMonkeyType(target.Type(), replacement.Type()) {
+			goto valid
+		}
+
+		panic(fmt.Sprintf(
+			"target and replacement have to have the same type %s != %s",
+			target.Type(), replacement.Type()))
+	}
+
+valid:
 
 	if global {
 		jumpData := jmpToGoFn((uintptr)(getPtr(replacement)))
@@ -92,10 +131,16 @@ func patchValue(target, replacement reflect.Value, global bool) {
 
 	p, ok := patches[target.Pointer()]
 	if !ok {
-		p = &patch{from: target.Pointer()}
+		p = &patch{from: target.Pointer(), generic: generic}
 		patches[target.Pointer()] = p
 	}
-	p.Add((uintptr)(getPtr(replacement)))
+
+	if p.generic {
+		p.Add(getFirstCallFunc(replacement.Pointer()))
+	} else {
+		p.Add((uintptr)(getPtr(replacement)))
+	}
+
 	p.Apply()
 }
 
@@ -161,15 +206,27 @@ func unpatch(target uintptr, p *patch) {
 }
 
 type patch struct {
-	from uintptr
+	from     uintptr
+	realFrom uintptr
 
 	original []byte
 	patch    []byte
 
 	patched bool
+	generic bool
 
 	// g pointer => patch func pointer
 	patches map[uintptr]uintptr
+}
+
+func (p *patch) getFrom() uintptr {
+	if !p.generic {
+		return p.from
+	}
+	if p.realFrom == 0 {
+		p.realFrom = getFirstCallFunc(p.from)
+	}
+	return p.realFrom
 }
 
 func (p *patch) Add(to uintptr) {
@@ -178,10 +235,6 @@ func (p *patch) Add(to uintptr) {
 	}
 
 	gid := (uintptr)(g.G())
-
-	if _, ok := p.patches[gid]; ok {
-		panic("patch exists")
-	}
 
 	p.patches[gid] = to
 }
@@ -208,28 +261,28 @@ func (p *patch) Apply() {
 
 	if p.patched {
 		data := littleEndian(v.Pointer())
-		copyToLocation(p.from+2, data)
+		copyToLocation(p.getFrom()+2, data)
 	} else {
 		jumpData := jmpToFunctionValue(v.Pointer())
-		copyToLocation(p.from, jumpData)
+		copyToLocation(p.getFrom(), jumpData)
 		p.patched = true
 	}
 }
 
 func (p *patch) Marshal() (patch []byte) {
 	if p.original == nil {
-		p.original = alginPatch(p.from)
+		p.original = alginPatch(p.getFrom())
 	}
 
 	patch = getg()
 
 	for g, to := range p.patches {
-		t := jmpTable(g, to)
+		t := jmpTable(g, to, !p.generic)
 		patch = append(patch, t...)
 	}
 
 	patch = append(patch, p.original...)
-	old := jmpToFunctionValue(p.from + uintptr(len(p.original)))
+	old := jmpToFunctionValue(p.getFrom() + uintptr(len(p.original)))
 	patch = append(patch, old...)
 
 	return

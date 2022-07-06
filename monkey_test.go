@@ -1,6 +1,7 @@
 package monkey_test
 
 import (
+	"math"
 	"reflect"
 	"runtime"
 	"sync"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-kiss/monkey"
+	"github.com/go-kiss/monkey/demo"
 )
 
 func no() bool  { return false }
@@ -194,13 +196,36 @@ func TestG(t *testing.T) {
 }
 
 func TestGlobal(t *testing.T) {
-	monkey.PatchAll(foo, bar)
+	monkey.PatchRaw(math.Abs, func(a float64) float64 {
+		return a + 1
+	}, true, false)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		assert(t, -1 == foo(1, 2))
+		assert(t, 2 == math.Abs(1))
 	}()
 	wg.Wait()
+}
+
+func add2[T int | float64](i, j T) T {
+	return i - j
+}
+
+type S2__monkey__[T int | float64] struct{ demo.S2[T] }
+
+func (s *S2__monkey__[T]) Foo() T { return s.I * 2 }
+
+func TestGeneric(t *testing.T) {
+	g1 := monkey.PatchRaw(demo.Add[int], add2[int], false, true)
+	assert(t, -1 == demo.Add(1, 2))
+	g1.Unpatch()
+	assert(t, 3 == demo.Add(1, 2))
+
+	g2 := monkey.PatchRaw((*demo.S2[int]).Foo, (*S2__monkey__[int]).Foo, false, true)
+	s := demo.S2[int]{I: 2}
+	assert(t, 4 == s.Foo())
+	g2.Unpatch()
+	assert(t, 2 == s.Foo())
 }

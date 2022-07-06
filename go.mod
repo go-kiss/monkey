@@ -1,6 +1,6 @@
 module github.com/go-kiss/monkey
 
-go 1.13
+go 1.18
 
 require (
 	github.com/huandu/go-tls v1.0.1
