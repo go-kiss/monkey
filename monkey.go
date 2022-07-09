@@ -18,6 +18,8 @@ var (
 type PatchGuard struct {
 	target      reflect.Value
 	replacement reflect.Value
+
+	global bool
 }
 
 func (g *PatchGuard) Unpatch() {
@@ -25,29 +27,31 @@ func (g *PatchGuard) Unpatch() {
 }
 
 func (g *PatchGuard) Restore() {
-	patchValue(g.target, g.replacement)
+	patchValue(g.target, g.replacement, g.global)
 }
 
-// Patch replaces a function with another
+// Patch replaces a function with another for current goroutine only.
+//
+// Usage examples:
+//   Patch(math.Abs, func(n float64) { return 0 })
+//   Patch((*net.Dialer).Dial, func(_ *net.Dialer, _, _ string) (net.Conn, error) {})
 func Patch(target, replacement interface{}) *PatchGuard {
 	t := reflect.ValueOf(target)
 	r := reflect.ValueOf(replacement)
-	patchValue(t, r)
 
-	return &PatchGuard{t, r}
+	patchValue(t, r, false)
+
+	return &PatchGuard{t, r, false}
 }
 
-// PatchInstanceMethod replaces an instance method methodName for the type target with replacement
-// Replacement should expect the receiver (of type target) as the first argument
-func PatchInstanceMethod(target reflect.Type, methodName string, replacement interface{}) *PatchGuard {
-	m, ok := target.MethodByName(methodName)
-	if !ok {
-		panic(fmt.Sprintf("unknown method %s", methodName))
-	}
+// PatchAll replaces a function with another globally.
+func PatchAll(target, replacement interface{}) *PatchGuard {
+	t := reflect.ValueOf(target)
 	r := reflect.ValueOf(replacement)
-	patchValue(m.Func, r)
 
-	return &PatchGuard{m.Func, r}
+	patchValue(t, r, true)
+
+	return &PatchGuard{t, r, true}
 }
 
 // See reflect.Value
@@ -60,7 +64,7 @@ func getPtr(v reflect.Value) unsafe.Pointer {
 	return (*value)(unsafe.Pointer(&v)).ptr
 }
 
-func patchValue(target, replacement reflect.Value) {
+func patchValue(target, replacement reflect.Value, global bool) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -76,14 +80,22 @@ func patchValue(target, replacement reflect.Value) {
 		panic(fmt.Sprintf("target and replacement have to have the same type %s != %s", target.Type(), replacement.Type()))
 	}
 
+	if replacement.IsNil() {
+		panic("replacement must not to be nil")
+	}
+
+	if global {
+		jumpData := jmpToGoFn((uintptr)(getPtr(replacement)))
+		copyToLocation(target.Pointer(), jumpData)
+		return
+	}
+
 	p, ok := patches[target.Pointer()]
 	if !ok {
 		p = &patch{from: target.Pointer()}
 		patches[target.Pointer()] = p
 	}
-	if !replacement.IsNil() {
-		p.Add((uintptr)(getPtr(replacement)))
-	}
+	p.Add((uintptr)(getPtr(replacement)))
 	p.Apply()
 }
 
