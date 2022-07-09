@@ -88,7 +88,7 @@ func (f *f) No() bool { return false }
 func TestOnInstanceMethod(t *testing.T) {
 	i := &f{}
 	assert(t, !i.No())
-	monkey.PatchInstanceMethod(reflect.TypeOf(i), "No", func(_ *f) bool { return true })
+	monkey.Patch((*f).No, func(_ *f) bool { return true })
 	assert(t, i.No())
 	assert(t, monkey.UnpatchInstanceMethod(reflect.TypeOf(i), "No"))
 	assert(t, !i.No())
@@ -189,6 +189,18 @@ func TestG(t *testing.T) {
 		})
 		defer wg.Done()
 		assert(t, 2 == foo(1, 2))
+	}()
+	wg.Wait()
+}
+
+func TestGlobal(t *testing.T) {
+	monkey.PatchAll(foo, bar)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		assert(t, -1 == foo(1, 2))
 	}()
 	wg.Wait()
 }

@@ -37,9 +37,18 @@ import (
 
 func sum(a, b int) int { return a + b }
 
+type S struct { i int }
+
+func (s *S) Get() int { return i }
+
 func main() {
+	// mock 普通函数
 	monkey.Patch(sum, func(a b int) int { return a - b })
 	fmt.Println(sum(1,2)) // 输出 -1
+	// mock 结构体方法
+	monkey.Patch((*s).Get, func(s *S) int { return -1 })
+	var s S
+	fmt.Println(s.Get()) // 输出 -1
 }
 ```
 

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"reflect"
 	"strings"
 
 	"github.com/go-kiss/monkey"
@@ -11,7 +10,7 @@ import (
 
 func main() {
 	var guard *monkey.PatchGuard
-	guard = monkey.PatchInstanceMethod(reflect.TypeOf(http.DefaultClient), "Get", func(c *http.Client, url string) (*http.Response, error) {
+	guard = monkey.Patch((*http.Client).Get, func(c *http.Client, url string) (*http.Response, error) {
 		guard.Unpatch()
 		defer guard.Restore()
 
@@ -22,8 +21,8 @@ func main() {
 		return c.Get(url)
 	})
 
-	_, err := http.Get("http://google.com")
+	_, err := http.Get("http://taoshu.in")
 	fmt.Println(err) // only https requests allowed
-	resp, err := http.Get("https://google.com")
+	resp, err := http.Get("https://taoshu.in")
 	fmt.Println(resp.Status, err) // 200 OK <nil>
 }

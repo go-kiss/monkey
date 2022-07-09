@@ -1,19 +1,19 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
-	"reflect"
 
 	"github.com/go-kiss/monkey"
 )
 
 func main() {
-	var d *net.Dialer
-	monkey.PatchInstanceMethod(reflect.TypeOf(d), "Dial", func(_ *net.Dialer, _, _ string) (net.Conn, error) {
+	monkey.PatchAll((*net.Dialer).DialContext, func(_ *net.Dialer, _ context.Context, _, _ string) (net.Conn, error) {
 		return nil, fmt.Errorf("no dialing allowed")
 	})
-	_, err := http.Get("http://google.com")
-	fmt.Println(err) // Get http://google.com: no dialing allowed
+
+	_, err := http.Get("http://taoshu.in")
+	fmt.Println(err) // Get http://taoshu.in: no dialing allowed
 }
