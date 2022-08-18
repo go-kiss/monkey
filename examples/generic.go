@@ -31,10 +31,10 @@ func (s *S1__monkey__[T]) Get() T {
 }
 
 func main() {
-	monkey.PatchRaw(sum[int], foo[int], false, true)
+	monkey.Patch(sum[int], foo[int], monkey.OptGeneric)
 	fmt.Println(sum(1, 2)) // display -1
 
-	monkey.PatchRaw((*S1[int]).Get, (*S1__monkey__[int]).Get, false, true)
+	monkey.Patch((*S1[int]).Get, (*S1__monkey__[int]).Get, monkey.OptGeneric)
 	s := S1[int]{i: 1}
 	fmt.Println(s.Get()) // display 2
 }

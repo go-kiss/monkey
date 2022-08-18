@@ -37,22 +37,19 @@ func (g *PatchGuard) Restore() {
 // Usage examples:
 //   Patch(math.Abs, func(n float64) { return 0 })
 //   Patch((*net.Dialer).Dial, func(_ *net.Dialer, _, _ string) (net.Conn, error) {})
-func Patch(target, replacement interface{}) *PatchGuard {
+func Patch(target, replacement interface{}, opts ...Option) *PatchGuard {
 	t := reflect.ValueOf(target)
 	r := reflect.ValueOf(replacement)
 
-	patchValue(t, r, false, false)
+	o := opt{}
 
-	return &PatchGuard{t, r, false, false}
-}
+	for _, opt := range opts {
+		opt.apply(&o)
+	}
 
-func PatchRaw(target interface{}, replacement interface{}, global, generic bool) *PatchGuard {
-	t := reflect.ValueOf(target)
-	r := reflect.ValueOf(replacement)
+	patchValue(t, r, o.global, o.generic)
 
-	patchValue(t, r, global, generic)
-
-	return &PatchGuard{t, r, false, true}
+	return &PatchGuard{t, r, o.global, o.generic}
 }
 
 // See reflect.Value
