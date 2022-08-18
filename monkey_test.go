@@ -196,9 +196,9 @@ func TestG(t *testing.T) {
 }
 
 func TestGlobal(t *testing.T) {
-	monkey.PatchRaw(math.Abs, func(a float64) float64 {
+	monkey.Patch(math.Abs, func(a float64) float64 {
 		return a + 1
-	}, true, false)
+	}, monkey.OptGlobal)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -218,12 +218,12 @@ type S2__monkey__[T int | float64] struct{ demo.S2[T] }
 func (s *S2__monkey__[T]) Foo() T { return s.I * 2 }
 
 func TestGeneric(t *testing.T) {
-	g1 := monkey.PatchRaw(demo.Add[int], add2[int], false, true)
+	g1 := monkey.Patch(demo.Add[int], add2[int], monkey.OptGeneric)
 	assert(t, -1 == demo.Add(1, 2))
 	g1.Unpatch()
 	assert(t, 3 == demo.Add(1, 2))
 
-	g2 := monkey.PatchRaw((*demo.S2[int]).Foo, (*S2__monkey__[int]).Foo, false, true)
+	g2 := monkey.Patch((*demo.S2[int]).Foo, (*S2__monkey__[int]).Foo, monkey.OptGeneric)
 	s := demo.S2[int]{I: 2}
 	assert(t, 4 == s.Foo())
 	g2.Unpatch()
