@@ -95,12 +95,13 @@ func getFirstCallFunc(from uintptr) uintptr {
 	f := rawMemoryAccess(from, 1024)
 
 	s := 0
+	var lastLea x86asm.Inst
 	for {
 		i, err := x86asm.Decode(f[s:], 64)
 		if err != nil {
 			panic(err)
 		}
-		if i.Op == x86asm.CALL {
+		if i.Op == x86asm.CALL && lastLea.Args[0].(x86asm.Reg) == x86asm.RAX {
 			arg := i.Args[0]
 			imm := arg.(x86asm.Rel)
 			next := from + uintptr(s+i.Len)
@@ -115,6 +116,10 @@ func getFirstCallFunc(from uintptr) uintptr {
 		s += i.Len
 		if s >= 1024 {
 			panic("Can not find CALL instruction")
+		}
+		// 有些情况下会生成 NOPW 指令，需要跳过
+		if i.Op == x86asm.LEA {
+			lastLea = i
 		}
 	}
 }

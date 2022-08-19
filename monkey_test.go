@@ -229,3 +229,28 @@ func TestGeneric(t *testing.T) {
 	g2.Unpatch()
 	assert(t, 2 == s.Foo())
 }
+
+type TreeNode struct {
+	Name     string
+	ID       int
+	Children []*TreeNode
+	A        int
+	B        int
+	C        int
+	// 注释掉go test可以正常运行
+	A1 int
+	B2 int
+	C1 int
+}
+
+func first[T any](a, b T) T { return a }
+
+func second[T any](a, b T) T { return b }
+
+// https://github.com/go-kiss/monkey/issues/8
+func TestIssue8(t *testing.T) {
+	t1 := TreeNode{ID: 1}
+	t2 := TreeNode{ID: 2}
+	monkey.Patch(first[TreeNode], second[TreeNode], monkey.OptGeneric)
+	assert(t, t2.ID == first(t1, t2).ID)
+}
