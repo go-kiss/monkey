@@ -10,6 +10,8 @@ var OptGeneric = optGeneric{}
 type opt struct {
 	global  bool
 	generic bool
+
+	gOld []byte
 }
 
 type optGlobal struct{}

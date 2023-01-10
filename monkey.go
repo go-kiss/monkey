@@ -20,36 +20,40 @@ type PatchGuard struct {
 	target      reflect.Value
 	replacement reflect.Value
 
-	global  bool
-	generic bool
+	opt *opt
 }
 
 func (g *PatchGuard) Unpatch() {
+	if g.opt.global {
+		copyToLocation(g.target.Pointer(), g.opt.gOld)
+		return
+	}
 	unpatchValue(g.target)
 }
 
 func (g *PatchGuard) Restore() {
-	patchValue(g.target, g.replacement, g.global, g.generic)
+	patchValue(g.target, g.replacement, g.opt)
 }
 
 // Patch replaces a function with another for current goroutine only.
 //
 // Usage examples:
-//   Patch(math.Abs, func(n float64) { return 0 })
-//   Patch((*net.Dialer).Dial, func(_ *net.Dialer, _, _ string) (net.Conn, error) {})
+//
+//	Patch(math.Abs, func(n float64) { return 0 })
+//	Patch((*net.Dialer).Dial, func(_ *net.Dialer, _, _ string) (net.Conn, error) {})
 func Patch(target, replacement interface{}, opts ...Option) *PatchGuard {
 	t := reflect.ValueOf(target)
 	r := reflect.ValueOf(replacement)
 
-	o := opt{}
+	o := &opt{}
 
 	for _, opt := range opts {
-		opt.apply(&o)
+		opt.apply(o)
 	}
 
-	patchValue(t, r, o.global, o.generic)
+	patchValue(t, r, o)
 
-	return &PatchGuard{t, r, o.global, o.generic}
+	return &PatchGuard{t, r, o}
 }
 
 // See reflect.Value
@@ -92,7 +96,7 @@ func checkStructMonkeyType(a, b reflect.Type) bool {
 	return t1 == t2
 }
 
-func patchValue(target, replacement reflect.Value, global, generic bool) {
+func patchValue(target, replacement reflect.Value, opt *opt) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -120,15 +124,20 @@ func patchValue(target, replacement reflect.Value, global, generic bool) {
 
 valid:
 
-	if global {
+	if opt.global {
 		jumpData := jmpToGoFn((uintptr)(getPtr(replacement)))
+
+		f := rawMemoryAccess(target.Pointer(), len(jumpData))
+		opt.gOld = make([]byte, len(jumpData))
+		copy(opt.gOld, f)
+
 		copyToLocation(target.Pointer(), jumpData)
 		return
 	}
 
 	p, ok := patches[target.Pointer()]
 	if !ok {
-		p = &patch{from: target.Pointer(), generic: generic}
+		p = &patch{from: target.Pointer(), generic: opt.generic}
 		patches[target.Pointer()] = p
 	}
 

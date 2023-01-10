@@ -196,7 +196,7 @@ func TestG(t *testing.T) {
 }
 
 func TestGlobal(t *testing.T) {
-	monkey.Patch(math.Abs, func(a float64) float64 {
+	g0 := monkey.Patch(math.Abs, func(a float64) float64 {
 		return a + 1
 	}, monkey.OptGlobal)
 
@@ -207,6 +207,9 @@ func TestGlobal(t *testing.T) {
 		assert(t, 2 == math.Abs(1))
 	}()
 	wg.Wait()
+
+	g0.Unpatch()
+	assert(t, 1 == math.Abs(1))
 }
 
 func add2[T int | float64](i, j T) T {
