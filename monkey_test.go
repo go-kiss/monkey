@@ -156,7 +156,7 @@ func TestEmpty(t *testing.T) {
 					}
 				}(j)
 				monkey.Patch(foo, f)
-				assert(t, 1+1+j == foo(1, 1))
+				assert(t, foo(1, 1) == 1+1+j)
 				monkey.Unpatch(foo)
 				select {
 				case <-stop:
@@ -169,7 +169,7 @@ func TestEmpty(t *testing.T) {
 	}
 
 	for i := 0; i < 2000000; i++ {
-		assert(t, i+1 == foo(i, 1))
+		assert(t, foo(i, 1) == i+1)
 	}
 	close(stop)
 	wg.Wait()
@@ -178,19 +178,19 @@ func TestEmpty(t *testing.T) {
 func TestG(t *testing.T) {
 	monkey.Patch(foo, bar)
 
-	assert(t, -1 == foo(1, 2))
+	assert(t, foo(1, 2) == -1)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		assert(t, 3 == foo(1, 2))
+		assert(t, foo(1, 2) == 3)
 	}()
 	go func() {
 		monkey.Patch(foo, func(a, b int) int {
 			return a * b
 		})
 		defer wg.Done()
-		assert(t, 2 == foo(1, 2))
+		assert(t, foo(1, 2) == 2)
 	}()
 	wg.Wait()
 }
@@ -204,12 +204,12 @@ func TestGlobal(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		assert(t, 2 == math.Abs(1))
+		assert(t, math.Abs(1) == 2)
 	}()
 	wg.Wait()
 
 	g0.Unpatch()
-	assert(t, 1 == math.Abs(1))
+	assert(t, math.Abs(1) == 1)
 }
 
 func add2[T int | float64](i, j T) T {
@@ -222,15 +222,15 @@ func (s *S2__monkey__[T]) Foo() T { return s.I * 2 }
 
 func TestGeneric(t *testing.T) {
 	g1 := monkey.Patch(demo.Add[int], add2[int], monkey.OptGeneric)
-	assert(t, -1 == demo.Add(1, 2))
+	assert(t, demo.Add(1, 2) == -1)
 	g1.Unpatch()
-	assert(t, 3 == demo.Add(1, 2))
+	assert(t, demo.Add(1, 2) == 3)
 
 	g2 := monkey.Patch((*demo.S2[int]).Foo, (*S2__monkey__[int]).Foo, monkey.OptGeneric)
 	s := demo.S2[int]{I: 2}
-	assert(t, 4 == s.Foo())
+	assert(t, s.Foo() == 4)
 	g2.Unpatch()
-	assert(t, 2 == s.Foo())
+	assert(t, s.Foo() == 2)
 }
 
 type TreeNode struct {
