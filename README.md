@@ -14,8 +14,6 @@ Go 语言猴子补丁（monkey patching）框架。
 
 Bouke 已经不再维护原项目，所以只能开一个新项目了🤣。
 
-有兴趣的同学也可以加微信 `taoshu-in` 讨论，拉你进群。
-
 ## 快速入门
 
 首先，引入 monkey 包
@@ -62,7 +60,9 @@ func main() {
 
 ## 注意事项
 
-1. Monkey 需要关闭 Go 语言的内联优化才能生效，比如测试的时候需要：`go test -gcflags=all=-l`。
+1. Monkey 需要关闭 Go 语言的内联优化才能生效，比如测试的时候需要：`go test -gcflags='all=-N -l'`。
 2. Monkey 需要在运行的时候修改内存代码段，因而无法在一些对安全性要求比较高的系统上工作。
 3. Monkey 不应该用于生产系统，但用来 mock 测试代码还是没有问题的。
-4. Monkey 目前仅支持 amd64 指令架构，支持 linux/macos/windows 平台。
+4. Monkey 目前仅支持 amd64 指令架构，支持 linux/macos/~~windows~~[^win] 平台。
+
+[^win]: 目前在 Win 平台下 Go 1.20 版本之后会报错。欢迎熟悉 Win 平台的同学提供 PR。问题解决之前建议 Win 用户使用 WSL。
