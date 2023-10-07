@@ -84,7 +84,7 @@ func checkStructMonkeyType(a, b reflect.Type) bool {
 	t1 := a.In(0).String()
 	t2 := b.In(0).String()
 
-	if strings.Index(t2, "__monkey__") == -1 {
+	if !strings.Contains(t2, "__monkey__") {
 		return false
 	}
 
@@ -158,12 +158,12 @@ func PatchEmpty(target interface{}) {
 
 	t := reflect.ValueOf(target).Pointer()
 
-	p, ok := patches[t]
+	_, ok := patches[t]
 	if ok {
 		return
 	}
 
-	p = &patch{from: t}
+	p := &patch{from: t}
 	patches[t] = p
 	p.Apply()
 }
@@ -205,10 +205,6 @@ func unpatchValue(target reflect.Value) bool {
 	}
 
 	return patch.Del()
-}
-
-func unpatch(target uintptr, p *patch) {
-	copyToLocation(target, p.original)
 }
 
 type patch struct {
