@@ -90,7 +90,7 @@ func (f *f) No() bool { return false }
 func TestOnInstanceMethod(t *testing.T) {
 	i := &f{}
 	assert(t, !i.No())
-	monkey.Patch((*f).No, func(_ *f) bool { return true })
+	monkey.PatchInstanceMethod(reflect.TypeOf(i), "No", func(_ *f) bool { return true })
 	assert(t, i.No())
 	assert(t, monkey.UnpatchInstanceMethod(reflect.TypeOf(i), "No"))
 	assert(t, !i.No())
