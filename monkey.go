@@ -56,6 +56,20 @@ func Patch(target, replacement interface{}, opts ...Option) *PatchGuard {
 	return &PatchGuard{t, r, o}
 }
 
+// PatchInstanceMethod replaces an instance method methodName for the type target with replacement
+// Replacement should expect the receiver (of type target) as the first argument
+func PatchInstanceMethod(target reflect.Type, methodName string, replacement interface{}) *PatchGuard {
+	m, ok := target.MethodByName(methodName)
+	if !ok {
+		panic(fmt.Sprintf("unknown method %s", methodName))
+	}
+
+	o := &opt{}
+	r := reflect.ValueOf(replacement)
+	patchValue(m.Func, r, o)
+	return &PatchGuard{m.Func, r, o}
+}
+
 // See reflect.Value
 type value struct {
 	_   uintptr
