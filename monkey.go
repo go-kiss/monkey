@@ -64,7 +64,7 @@ func PatchInstanceMethod(target reflect.Type, methodName string, replacement int
 		panic(fmt.Sprintf("unknown method %s", methodName))
 	}
 
-	o := &opt{global: true}
+	o := &opt{}
 	r := reflect.ValueOf(replacement)
 	patchValue(m.Func, r, o)
 	return &PatchGuard{m.Func, r, o}
